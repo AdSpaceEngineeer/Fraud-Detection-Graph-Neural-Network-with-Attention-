@@ -1,0 +1,33 @@
+# Load the YelpChi .mat file (inside YelpChi.zip)
+with zipfile.ZipFile('YelpChi.zip','r') as z:
+    with z.open('YelpChi.mat') as mfile:
+        mat = scipy.io.loadmat(io.BytesIO(mfile.read()))
+
+features = mat['features'].astype(np.float32)    # shape (45954,32)
+labels = mat['label'].astype(np.int64).squeeze() # shape (45954,)
+
+# Build edge_index from three relations (R-U-R, R-T-R, R-S-R)
+net_rur = mat['net_rur'].tocoo()  # Review-User-Review
+net_rtr = mat['net_rtr'].tocoo()  # Review-Topic-Review
+net_rsr = mat['net_rsr'].tocoo()  # Review-Sentiment-Review
+row = np.concatenate([net_rur.row, net_rtr.row, net_rsr.row])
+col = np.concatenate([net_rur.col, net_rtr.col, net_rsr.col])
+edge_index = torch.tensor(np.vstack([row, col]), dtype=torch.long)
+
+# Create PyG Data object
+data = Data(
+    x=torch.tensor(features.todense() if hasattr(features,'todense') else features), 
+    edge_index=edge_index, 
+    y=torch.tensor(labels)
+)
+# 70:30 train/test split
+num_nodes = data.num_nodes
+perm = torch.randperm(num_nodes)
+train_cutoff = int(0.7 * num_nodes)
+train_mask = torch.zeros(num_nodes, dtype=torch.bool)
+train_mask[perm[:train_cutoff]] = True
+data.train_mask = train_mask
+
+print(f"Nodes: {data.num_nodes}, Features: {data.num_features}, Edges: {data.num_edges}")
+print(f"Fraud rate: {data.y.sum().item()/len(data.y):.2%}")
+print(f"Training nodes: {data.train_mask.sum().item()}, Test nodes: {(~data.train_mask).sum().item()}")
