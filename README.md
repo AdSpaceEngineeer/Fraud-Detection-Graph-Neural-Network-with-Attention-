@@ -45,39 +45,7 @@ We train both models using supervised cross-entropy on the labeled nodes.
 - Class imbalance handling: The models see ~14.5% positive nodes; we rely on the GNN’s context-awareness rather than resampling.
 - The training code above will output epoch-wise loss and test metrics. (A similar loop can be used for model_gcn.) By the end, we compute final metrics on the held-out 30% of nodes.
 
-    import torch.optim as optim
-    from sklearn.metrics import accuracy_score, recall_score, f1_score
-    
-    def train(model, data):
-        model.train()
-        optimizer.zero_grad()
-        logits = model(data.x, data.edge_index)
-        loss = F.cross_entropy(logits[data.train_mask], data.y[data.train_mask])
-        loss.backward()
-        optimizer.step()
-        return loss.item()
-    
-    def evaluate(model, data):
-        model.eval()
-        with torch.no_grad():
-            logits = model(data.x, data.edge_index)
-            preds = logits.argmax(dim=1)
-        # compute metrics on test set
-        test_mask = ~data.train_mask
-        y_true = data.y[test_mask].cpu().numpy()
-        y_pred = preds[test_mask].cpu().numpy()
-        acc = accuracy_score(y_true, y_pred)
-        rec = recall_score(y_true, y_pred)
-        f1 = f1_score(y_true, y_pred)
-        return acc, rec, f1
-    
-    # Example: training GAT for 50 epochs
-    optimizer = optim.Adam(model_gat.parameters(), lr=0.001, weight_decay=5e-4)
-    for epoch in range(1, 51):
-        loss = train(model_gat, data)
-        if epoch % 10 == 0:
-            acc, rec, f1 = evaluate(model_gat, data)
-            print(f'Epoch {epoch:02d}: Loss {loss:.4f}, Test Acc {acc:.4f}, Recall {rec:.4f}, F1 {f1:.4f}')
+Repo nav link: https://github.com/AdSpaceEngineeer/Fraud-Detection-Graph-Neural-Network-with-Attention-/blob/main/Training%20and%20Evaluation
 
 5. RESULTS
 
@@ -96,21 +64,21 @@ Our model’s recall (~94%) exceeds that baseline, though with lower precision. 
 
 To reproduce this project, follow these steps:
 
-i) Go to repository and navigate into it.
+6.1. Go to repository and navigate into it.
 
-ii) Install dependencies:
+6.2. Install dependencies:
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     pip install pyg-lib torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-2.0.0+cpu.html
     pip install torch-geometric
     pip install sklearn
 
-iii) Prepare data: 
+6.3. Prepare data: 
 Download YelpChi.zip (containing YelpChi.mat) from [4] and place it in your data folder.
 
-iv) Run the code: 
+6.4. Run the code: 
 Execute the provided training script to train the GNN model on YelpChi and print metrics.
 
-v) Inspect results: 
+6.5. Inspect results: 
 Review the printed accuracy, recall, and F1. Optionally, adjust hyperparameters or try different models.
 
 7. CALL TO ACTION FOR FUTURE WORK
@@ -124,8 +92,9 @@ Review the printed accuracy, recall, and F1. Optionally, adjust hyperparameters 
     iv) Explanations: Use GAT attention scores to highlight why a transaction was flagged, aiding interpretability.
 
 8. REFERENCES:
-[1] NVIDIA Tech Blog – Optimizing Fraud Detection in Financial Services with GNNs - https://developer.nvidia.com/blog/optimizing-fraud-detection-in-financial-services-with-graph-neural-networks-and-nvidia-gpus/
-[2] Dou et al., CARE-GNN: Enhancing GNN-based Fraud Detectors (CIKM 2020) - https://arxiv.org/abs/2008.08692
-[3] Veličković et al., Graph Attention Networks (GATs) (ICLR 2018) - https://arxiv.org/abs/1710.10903
-[4] YelpChi datasets stats - https://www.kaggle.com/datasets/yelp-dataset/yelp-dataset
-[5] Liu et al., Improving Fraud Detection via Hierarchical Attention GNN (arXiv 2022) - https://arxiv.org/pdf/2202.06096
+
+1] NVIDIA Tech Blog – Optimizing Fraud Detection in Financial Services with GNNs - https://developer.nvidia.com/blog/optimizing-fraud-detection-in-financial-services-with-graph-neural-networks-and-nvidia-gpus/
+2] Dou et al., CARE-GNN: Enhancing GNN-based Fraud Detectors (CIKM 2020) - https://arxiv.org/abs/2008.08692
+3] Veličković et al., Graph Attention Networks (GATs) (ICLR 2018) - https://arxiv.org/abs/1710.10903
+4] YelpChi datasets stats - https://www.kaggle.com/datasets/yelp-dataset/yelp-dataset
+5] Liu et al., Improving Fraud Detection via Hierarchical Attention GNN (arXiv 2022) - https://arxiv.org/pdf/2202.06096
