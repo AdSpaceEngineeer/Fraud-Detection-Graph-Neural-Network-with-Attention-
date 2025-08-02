@@ -17,94 +17,23 @@ Fraudulent nodes: 6,677 (14.5% of total)
 Split: 70% of nodes for training, 30% for testing (random shuffle)
 These statistics closely match published descriptions. The class imbalance (few frauds) is typical of financial fraud data, as noted in industry. 
 
-3.c. Code snippet to load and summarize the data:
-    import scipy.io, io, zipfile
-    import numpy as np
-    import torch
-    from torch_geometric.data import Data
-    
-    # Load the YelpChi .mat file (inside YelpChi.zip)
-    with zipfile.ZipFile('YelpChi.zip','r') as z:
-        with z.open('YelpChi.mat') as mfile:
-            mat = scipy.io.loadmat(io.BytesIO(mfile.read()))
-    
-    features = mat['features'].astype(np.float32)    # shape (45954,32)
-    labels = mat['label'].astype(np.int64).squeeze() # shape (45954,)
-    
-    # Build edge_index from three relations (R-U-R, R-T-R, R-S-R)
-    net_rur = mat['net_rur'].tocoo()  # Review-User-Review
-    net_rtr = mat['net_rtr'].tocoo()  # Review-Topic-Review
-    net_rsr = mat['net_rsr'].tocoo()  # Review-Sentiment-Review
-    row = np.concatenate([net_rur.row, net_rtr.row, net_rsr.row])
-    col = np.concatenate([net_rur.col, net_rtr.col, net_rsr.col])
-    edge_index = torch.tensor(np.vstack([row, col]), dtype=torch.long)
-    
-    # Create PyG Data object
-    data = Data(
-        x=torch.tensor(features.todense() if hasattr(features,'todense') else features), 
-        edge_index=edge_index, 
-        y=torch.tensor(labels)
-    )
-    # 70:30 train/test split
-    num_nodes = data.num_nodes
-    perm = torch.randperm(num_nodes)
-    train_cutoff = int(0.7 * num_nodes)
-    train_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    train_mask[perm[:train_cutoff]] = True
-    data.train_mask = train_mask
-    
-    print(f"Nodes: {data.num_nodes}, Features: {data.num_features}, Edges: {data.num_edges}")
-    print(f"Fraud rate: {data.y.sum().item()/len(data.y):.2%}")
-    print(f"Training nodes: {data.train_mask.sum().item()}, Test nodes: {(~data.train_mask).sum().item()}")
+Repo nav link to load and summarize the data: https://github.com/AdSpaceEngineeer/Fraud-Detection-Graph-Neural-Network-with-Attention-/blob/main/Dataset%20load%20and%20summarize 
 
 4. METHOD - GCN and GAT Models
 
 We implement two GNN models: a FraudGCN and a FraudGAT. Both are two-layer classifiers predicting fraud (node classification).
 
 4.a. FraudGCN: 
-A simple 2-layer Graph Convolutional Network (GCN).In each layer, node features are aggregated (via graph convolution) and passed through ReLU/dropout. The final layer outputs logits for the two classes. This follows prior work showing that even basic GCNs benefit fraud detection by leveraging network structure.
+A simple 2-layer Graph Convolutional Network (GCN).In each layer, node features are aggregated (via graph convolution) and passed through ReLU/dropout. The final layer outputs logits for the two classes. This follows prior work showing that even basic GCNs benefit fraud detection by leveraging network structure. 
 
-    import torch.nn.functional as F
-    from torch_geometric.nn import GCNConv
-    
-    class FraudGCN(torch.nn.Module):
-        def __init__(self, in_features, hidden_dim, out_features):
-            super().__init__()
-            self.conv1 = GCNConv(in_features, hidden_dim)
-            self.conv2 = GCNConv(hidden_dim, out_features)
-            self.dropout = 0.6  # dropout rate from relevant GNN papers
-        def forward(self, x, edge_index):
-            x = self.conv1(x, edge_index)
-            x = F.relu(x)
-            x = F.dropout(x, p=self.dropout, training=self.training)
-            x = self.conv2(x, edge_index)
-            return x  # raw logits, to be used with CrossEntropyLoss
-    
-    # Initialize GCN: input_dim=32 (features), hidden=64, output=2 classes
-    model_gcn = FraudGCN(in_features=32, hidden_dim=64, out_features=2)
+Repo nav link : https://github.com/AdSpaceEngineeer/Fraud-Detection-Graph-Neural-Network-with-Attention-/blob/main/FraudGCN 
 
 4.b. FraudGAT: 
-A 2-layer Graph Attention Network. The first layer uses multi-head attention (heads=4) to learn neighbor weights, then a second head-reducing layer for final logits. Attention allows the model to “specify different weights to different nodes in a neighborhood”, which can highlight fraud-related links.
+A 2-layer Graph Attention Network. The first layer uses multi-head attention (heads=4) to learn neighbor weights, then a second head-reducing layer for final logits. Attention allows the model to “specify different weights to different nodes in a neighborhood”, which can highlight fraud-related links. 
 
-    from torch_geometric.nn import GATConv
-    
-    class FraudGAT(torch.nn.Module):
-        def __init__(self, in_features, hidden_dim, heads=4):
-            super().__init__()
-            self.conv1 = GATConv(in_features, hidden_dim, heads=heads, dropout=0.6)
-            # output of conv1 has shape [num_nodes, hidden_dim*heads]
-            self.conv2 = GATConv(hidden_dim*heads, 2, heads=1, concat=False, dropout=0.6)
-        def forward(self, x, edge_index):
-            x = self.conv1(x, edge_index)
-            x = F.elu(x)
-            x = F.dropout(x, p=0.6, training=self.training)
-            x = self.conv2(x, edge_index)
-            return x  # raw logits
-    
-    # Initialize GAT
-    model_gat = FraudGAT(in_features=32, hidden_dim=64, heads=4)
+Repo nav link: https://github.com/AdSpaceEngineeer/Fraud-Detection-Graph-Neural-Network-with-Attention-/blob/main/FraudGAT 
 
-The above models use PyTorch Geometric layers. Note that GCN uses simple mean-aggregation, whereas GAT “operates on graph data, leveraging masked self-attention” to weight neighbors dynamically. Both models end with 2 output logits (legit/fraud).
+These models use PyTorch Geometric layers. Note that GCN uses simple mean-aggregation, whereas GAT “operates on graph data, leveraging masked self-attention” to weight neighbors dynamically. Both models end with 2 output logits (legit/fraud).
 
 4.c. Training and Evaluation
 
